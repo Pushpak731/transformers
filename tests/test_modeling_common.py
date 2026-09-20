@@ -747,7 +747,7 @@ def assert_same_run_close(first, second, rtol=1e-5, atol=1e-5):
     -- offloaded to CPU, spread over devices -- differ by bfloat16 rounding, which is a fraction of
     the output rather than a multiple of float32 epsilon.
     """
-    if torch_device == "tpu":
+    if torch_device == "tpu" and first.numel():
         atol = max(atol, max(first.abs().max().item(), second.abs().max().item()) * 1e-2)
     torch.testing.assert_close(first, second, rtol=rtol, atol=atol)
 
