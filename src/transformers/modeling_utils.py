@@ -3627,6 +3627,22 @@ class PreTrainedModel(
         return mem
 
     @wraps(torch.nn.Module.cuda)
+    def _apply(self, *args, **kwargs):
+        out = super()._apply(*args, **kwargs)
+        # `nn.Module._apply` keeps tied weights tied by swapping the data of each parameter in place,
+        # which it can only do when the new tensor can be shallow-copied onto the old one
+        # (`torch._has_compatible_shallow_copy_type`). Where it cannot, it installs fresh `Parameter`
+        # objects instead, and the ties -- which are nothing more than object identity -- are silently
+        # lost: the tied weight is duplicated and only one of the two copies receives gradients.
+        # Re-tie whatever the move untied. Wherever the ties survived, this is a no-op.
+        tied_keys = getattr(self, "all_tied_weights_keys", None) or {}
+        if any(
+            self.get_parameter_or_buffer(target) is not self.get_parameter_or_buffer(source)
+            for target, source in tied_keys.items()
+        ):
+            self.tie_weights(recompute_mapping=False)
+        return out
+
     def cuda(self, *args, **kwargs):
         if getattr(self, "quantization_method", None) == QuantizationMethod.HQQ:
             from hqq.core.quantize import HQQLinear
