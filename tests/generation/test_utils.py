@@ -41,6 +41,7 @@ from transformers import (
 )
 from transformers.testing_utils import (
     CaptureLogger,
+    assert_same_run_close,
     is_flaky,
     require_accelerate,
     require_flash_attn,
@@ -2954,17 +2955,20 @@ class GenerationTesterMixin(ExportGenerateTesterMixin):
         if not len(cache1) == len(cache2):
             raise ValueError("Both caches do not have the same number of layers.")
 
+        # The two caches come from the same model run two ways, so they are compared with
+        # `assert_same_run_close`: on a device whose matmuls run in bfloat16 the split itself costs
+        # some precision, and everywhere else this is the plain comparison it was before.
         def check_attentions(layer1, layer2):
-            torch.testing.assert_close(layer1.keys, layer2.keys)
-            torch.testing.assert_close(layer1.values, layer2.values)
+            assert_same_run_close(layer1.keys, layer2.keys)
+            assert_same_run_close(layer1.values, layer2.values)
 
         def check_linear_attention(layer1, layer2):
             self.assertEqual(layer1.number_of_states, layer2.number_of_states)
             for i in range(layer1.number_of_states):
-                torch.testing.assert_close(layer1.conv_states[i], layer2.conv_states[i])
+                assert_same_run_close(layer1.conv_states[i], layer2.conv_states[i])
                 # May not be used (e.g. lfm2)
                 if layer1.is_recurrent_states_initialized[i]:
-                    torch.testing.assert_close(layer1.recurrent_states[i], layer2.recurrent_states[i])
+                    assert_same_run_close(layer1.recurrent_states[i], layer2.recurrent_states[i])
 
         num_layers = len(cache1)
         for idx in range(num_layers):

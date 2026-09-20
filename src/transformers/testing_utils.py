@@ -3132,6 +3132,21 @@ def run_test_in_subprocess(test_case, target_func, inputs=None, timeout=None):
         test_case.fail(f"{results['error']}")
 
 
+def assert_same_run_close(first, second, **kwargs):
+    """`torch.testing.assert_close` for two runs of the same model that should agree on the numbers.
+
+    Where float32 matmuls execute in bfloat16, two runs that differ only in how the work was split
+    -- offloaded to CPU, spread over devices, continued from a cache -- differ by bfloat16 rounding,
+    which is a fraction of the output rather than a multiple of float32 epsilon. On every other
+    device this is `torch.testing.assert_close` with the arguments it was given.
+    """
+    if torch_device == "tpu" and first.numel():
+        magnitude = max(first.abs().max().item(), second.abs().max().item())
+        kwargs["atol"] = max(kwargs.get("atol") or 0.0, magnitude * 1e-2)
+        kwargs.setdefault("rtol", 1e-5)
+    torch.testing.assert_close(first, second, **kwargs)
+
+
 # Backends without a working `torch.nn.functional.ctc_loss`. The call aborts the process there
 # rather than raising, so it takes the whole test session down with it instead of failing one test,
 # and every result the session had left to produce is lost.

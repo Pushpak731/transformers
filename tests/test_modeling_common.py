@@ -88,6 +88,7 @@ from transformers.models.auto.modeling_auto import (
 )
 from transformers.testing_utils import (
     NO_CTC_LOSS_DEVICES,
+    assert_same_run_close,
     CaptureLogger,
     force_serialization_as_bin_files,
     get_device_properties,
@@ -738,18 +739,6 @@ UNSHIFTED_LM_HEADS = {
     "XLMWithLMHeadModel",
     "XLNetLMHeadModel",
 }
-
-
-def assert_same_run_close(first, second, rtol=1e-5, atol=1e-5):
-    """Compare two runs of the same model that should agree on the numbers.
-
-    Where float32 matmuls execute in bfloat16, two runs that differ only in where the work happened
-    -- offloaded to CPU, spread over devices -- differ by bfloat16 rounding, which is a fraction of
-    the output rather than a multiple of float32 epsilon.
-    """
-    if torch_device == "tpu" and first.numel():
-        atol = max(atol, max(first.abs().max().item(), second.abs().max().item()) * 1e-2)
-    torch.testing.assert_close(first, second, rtol=rtol, atol=atol)
 
 
 @require_torch
@@ -3221,9 +3210,9 @@ class ModelTesterMixin(ExportTesterMixin):
                 new_output = new_model(**inputs_dict_class)
 
                 if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                    [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
+                    [assert_same_run_close(a, b, rtol=1e-5, atol=1e-5) for a, b in zip(base_output[0], new_output[0])]
                 else:
-                    assert_same_run_close(base_output[0], new_output[0])
+                    assert_same_run_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
 
     @require_accelerate
     @mark.accelerate_tests
@@ -3258,9 +3247,9 @@ class ModelTesterMixin(ExportTesterMixin):
                 new_output = new_model(**inputs_dict_class)
 
                 if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                    [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
+                    [assert_same_run_close(a, b, rtol=1e-5, atol=1e-5) for a, b in zip(base_output[0], new_output[0])]
                 else:
-                    assert_same_run_close(base_output[0], new_output[0])
+                    assert_same_run_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
 
     @require_accelerate
     @mark.accelerate_tests
@@ -3297,9 +3286,9 @@ class ModelTesterMixin(ExportTesterMixin):
                     new_output = new_model(**inputs_dict_class)
 
                     if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                        [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
+                        [assert_same_run_close(a, b, rtol=1e-5, atol=1e-5) for a, b in zip(base_output[0], new_output[0])]
                     else:
-                        assert_same_run_close(base_output[0], new_output[0])
+                        assert_same_run_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
 
     @require_non_hpu
     @require_accelerate
@@ -3337,9 +3326,9 @@ class ModelTesterMixin(ExportTesterMixin):
                     new_output = new_model(**inputs_dict_class)
 
                     if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                        [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
+                        [assert_same_run_close(a, b, rtol=1e-5, atol=1e-5) for a, b in zip(base_output[0], new_output[0])]
                     else:
-                        assert_same_run_close(base_output[0], new_output[0])
+                        assert_same_run_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
 
     def test_problem_types(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
