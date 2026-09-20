@@ -13,6 +13,7 @@
 import os
 import socket
 import tempfile
+import unittest
 from abc import ABC, abstractmethod
 from itertools import product
 
@@ -24,8 +25,10 @@ from transformers.distributed.tensor_parallel import _get_parameter_tp_plan
 from transformers.distributed.utils import get_distributed_backend
 from transformers.testing_utils import (
     backend_torch_accelerator_module,
+    device_is_held_by_one_process,
     is_tensor_parallel_test,
     is_torch_available,
+    torch_device,
 )
 from transformers.utils import is_torch_greater_or_equal, is_torchao_available
 
@@ -143,6 +146,8 @@ def _init_distributed(tp: int, max_retries: int = 5, backend: str | None = None)
 
     def _init_distributed_inner(func):
         def wrapper(*args, **kwargs):
+            if device_is_held_by_one_process():
+                raise unittest.SkipTest(f"the spawned ranks cannot open the {torch_device} device this process holds")
             world_size = tp
             for attempt in range(max_retries):
                 port = _find_free_port()

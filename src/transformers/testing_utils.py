@@ -3134,8 +3134,14 @@ def run_test_in_subprocess(test_case, target_func, inputs=None, timeout=None):
 
 # Backends that hand a device to a single process at a time: a child process cannot open the device
 # its parent is holding, and the runtime aborts rather than raising, so the parent only sees the
-# child die. Tests that re-run themselves in a subprocess cannot run on those.
+# child die. Tests that spawn worker processes -- re-running themselves in a subprocess, or fanning
+# a model out over several ranks -- cannot run on those.
 SINGLE_PROCESS_DEVICES = ("tpu",)
+
+
+def device_is_held_by_one_process() -> bool:
+    """Whether the current device can only be opened by the process that already holds it."""
+    return torch_device is not None and torch_device.split(":")[0] in SINGLE_PROCESS_DEVICES
 
 
 def run_test_using_subprocess(func):
@@ -3149,7 +3155,7 @@ def run_test_using_subprocess(func):
     def wrapper(*args, **kwargs):
         if os.getenv("_INSIDE_SUB_PROCESS", None) == "1":
             func(*args, **kwargs)
-        elif torch_device is not None and torch_device.split(":")[0] in SINGLE_PROCESS_DEVICES:
+        elif device_is_held_by_one_process():
             pytest.skip(f"the subprocess cannot open the {torch_device} device this process holds")
         else:
             test = " ".join(os.environ.get("PYTEST_CURRENT_TEST").split(" ")[:-1])
