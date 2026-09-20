@@ -88,8 +88,8 @@ from transformers.models.auto.modeling_auto import (
 )
 from transformers.testing_utils import (
     NO_CTC_LOSS_DEVICES,
-    assert_same_run_close,
     CaptureLogger,
+    assert_same_run_close,
     force_serialization_as_bin_files,
     get_device_properties,
     hub_retry,
@@ -649,10 +649,13 @@ def _test_eager_matches_batched_and_grouped_inference(self, name, dtype):
 
                     mock.reset_mock()
 
-        # all non-eager implementations must numerically match eager
+        # all non-eager implementations must numerically match eager. One tensor at a time, because
+        # how closely they can match depends on the size of what is being compared on devices that
+        # run these matmuls at reduced precision.
         eager_outputs = outputs.pop("eager")
         for impl, impl_outputs in outputs.items():
-            torch.testing.assert_close(eager_outputs, impl_outputs, rtol=1e-4, atol=1e-4)
+            for eager_output, impl_output in zip(eager_outputs, impl_outputs):
+                assert_same_run_close(eager_output, impl_output, rtol=1e-4, atol=1e-4)
 
 
 def _config_zero_init(config):
@@ -3286,7 +3289,10 @@ class ModelTesterMixin(ExportTesterMixin):
                     new_output = new_model(**inputs_dict_class)
 
                     if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                        [assert_same_run_close(a, b, rtol=1e-5, atol=1e-5) for a, b in zip(base_output[0], new_output[0])]
+                        [
+                            assert_same_run_close(a, b, rtol=1e-5, atol=1e-5)
+                            for a, b in zip(base_output[0], new_output[0])
+                        ]
                     else:
                         assert_same_run_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
 
@@ -3326,7 +3332,10 @@ class ModelTesterMixin(ExportTesterMixin):
                     new_output = new_model(**inputs_dict_class)
 
                     if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                        [assert_same_run_close(a, b, rtol=1e-5, atol=1e-5) for a, b in zip(base_output[0], new_output[0])]
+                        [
+                            assert_same_run_close(a, b, rtol=1e-5, atol=1e-5)
+                            for a, b in zip(base_output[0], new_output[0])
+                        ]
                     else:
                         assert_same_run_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
 
