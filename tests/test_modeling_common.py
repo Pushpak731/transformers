@@ -740,6 +740,18 @@ UNSHIFTED_LM_HEADS = {
 }
 
 
+def assert_same_run_close(first, second, rtol=1e-5, atol=1e-5):
+    """Compare two runs of the same model that should agree on the numbers.
+
+    Where float32 matmuls execute in bfloat16, two runs that differ only in where the work happened
+    -- offloaded to CPU, spread over devices -- differ by bfloat16 rounding, which is a fraction of
+    the output rather than a multiple of float32 epsilon.
+    """
+    if torch_device == "tpu":
+        atol = max(atol, max(first.abs().max().item(), second.abs().max().item()) * 1e-2)
+    torch.testing.assert_close(first, second, rtol=rtol, atol=atol)
+
+
 @require_torch
 class ModelTesterMixin(ExportTesterMixin):
     model_tester = None
@@ -1577,15 +1589,10 @@ class ModelTesterMixin(ExportTesterMixin):
                 self.assertFalse(
                     torch.isinf(single_row_object).any(), f"Single row output has `inf` in {model_name} for key={key}"
                 )
-                # Where float32 matmuls execute in bfloat16, the two batchings differ by bfloat16
-                # rounding, which is a fraction of the size of the output rather than a multiple of
-                # float32 epsilon.
-                row_atol = atol
-                if torch_device == "tpu":
-                    magnitude = max(batched_row.abs().max().item(), single_row_object.abs().max().item())
-                    row_atol = max(atol, magnitude * 1e-2)
                 try:
-                    torch.testing.assert_close(batched_row, single_row_object, atol=row_atol, rtol=rtol)
+                    # Batching changes the matmul shapes, so the comparison is a tolerant one; where
+                    # those matmuls run in bfloat16 the difference is a bfloat16 one.
+                    assert_same_run_close(batched_row, single_row_object, atol=atol, rtol=rtol)
                 except AssertionError as e:
                     msg = f"Batched and Single row outputs are not equal in {model_name} for key={key}.\n\n"
                     msg += str(e)
@@ -3214,12 +3221,9 @@ class ModelTesterMixin(ExportTesterMixin):
                 new_output = new_model(**inputs_dict_class)
 
                 if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                    [
-                        torch.testing.assert_close(a, b, rtol=1e-5, atol=1e-5)
-                        for a, b in zip(base_output[0], new_output[0])
-                    ]
+                    [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
                 else:
-                    torch.testing.assert_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
+                    assert_same_run_close(base_output[0], new_output[0])
 
     @require_accelerate
     @mark.accelerate_tests
@@ -3254,12 +3258,9 @@ class ModelTesterMixin(ExportTesterMixin):
                 new_output = new_model(**inputs_dict_class)
 
                 if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                    [
-                        torch.testing.assert_close(a, b, rtol=1e-5, atol=1e-5)
-                        for a, b in zip(base_output[0], new_output[0])
-                    ]
+                    [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
                 else:
-                    torch.testing.assert_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
+                    assert_same_run_close(base_output[0], new_output[0])
 
     @require_accelerate
     @mark.accelerate_tests
@@ -3296,12 +3297,9 @@ class ModelTesterMixin(ExportTesterMixin):
                     new_output = new_model(**inputs_dict_class)
 
                     if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                        [
-                            torch.testing.assert_close(a, b, rtol=1e-5, atol=1e-5)
-                            for a, b in zip(base_output[0], new_output[0])
-                        ]
+                        [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
                     else:
-                        torch.testing.assert_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
+                        assert_same_run_close(base_output[0], new_output[0])
 
     @require_non_hpu
     @require_accelerate
@@ -3339,12 +3337,9 @@ class ModelTesterMixin(ExportTesterMixin):
                     new_output = new_model(**inputs_dict_class)
 
                     if isinstance(base_output[0], tuple) and isinstance(new_output[0], tuple):
-                        [
-                            torch.testing.assert_close(a, b, rtol=1e-5, atol=1e-5)
-                            for a, b in zip(base_output[0], new_output[0])
-                        ]
+                        [assert_same_run_close(a, b) for a, b in zip(base_output[0], new_output[0])]
                     else:
-                        torch.testing.assert_close(base_output[0], new_output[0], rtol=1e-5, atol=1e-5)
+                        assert_same_run_close(base_output[0], new_output[0])
 
     def test_problem_types(self):
         config, inputs_dict = self.model_tester.prepare_config_and_inputs_for_common()
