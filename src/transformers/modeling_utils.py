@@ -3626,7 +3626,6 @@ class PreTrainedModel(
             mem = mem + mem_bufs
         return mem
 
-    @wraps(torch.nn.Module.cuda)
     def _apply(self, *args, **kwargs):
         out = super()._apply(*args, **kwargs)
         # `nn.Module._apply` keeps tied weights tied by swapping the data of each parameter in place,
@@ -3643,6 +3642,7 @@ class PreTrainedModel(
             self.tie_weights(recompute_mapping=False)
         return out
 
+    @wraps(torch.nn.Module.cuda)
     def cuda(self, *args, **kwargs):
         if getattr(self, "quantization_method", None) == QuantizationMethod.HQQ:
             from hqq.core.quantize import HQQLinear
