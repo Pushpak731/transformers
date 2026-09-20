@@ -3132,6 +3132,18 @@ def run_test_in_subprocess(test_case, target_func, inputs=None, timeout=None):
         test_case.fail(f"{results['error']}")
 
 
+# Backends without a working `torch.nn.functional.ctc_loss`. The call aborts the process there
+# rather than raising, so it takes the whole test session down with it instead of failing one test,
+# and every result the session had left to produce is lost.
+NO_CTC_LOSS_DEVICES = ("tpu",)
+
+
+def require_ctc_loss(test_case):
+    """Decorator marking a test that computes a CTC loss."""
+    supported = torch_device is None or torch_device.split(":")[0] not in NO_CTC_LOSS_DEVICES
+    return unittest.skipUnless(supported, f"`torch.nn.functional.ctc_loss` does not work on {torch_device}")(test_case)
+
+
 # Backends that hand a device to a single process at a time: a child process cannot open the device
 # its parent is holding, and the runtime aborts rather than raising, so the parent only sees the
 # child die. Tests that spawn worker processes -- re-running themselves in a subprocess, or fanning
