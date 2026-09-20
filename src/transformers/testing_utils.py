@@ -3117,6 +3117,12 @@ def run_test_in_subprocess(test_case, target_func, inputs=None, timeout=None):
         test_case.fail(f"{results['error']}")
 
 
+# Backends that hand a device to a single process at a time: a child process cannot open the device
+# its parent is holding, and the runtime aborts rather than raising, so the parent only sees the
+# child die. Tests that re-run themselves in a subprocess cannot run on those.
+SINGLE_PROCESS_DEVICES = ("tpu",)
+
+
 def run_test_using_subprocess(func):
     """
     To decorate a test to run in a subprocess using the `subprocess` module. This could avoid potential GPU memory
@@ -3128,6 +3134,8 @@ def run_test_using_subprocess(func):
     def wrapper(*args, **kwargs):
         if os.getenv("_INSIDE_SUB_PROCESS", None) == "1":
             func(*args, **kwargs)
+        elif torch_device is not None and torch_device.split(":")[0] in SINGLE_PROCESS_DEVICES:
+            pytest.skip(f"the subprocess cannot open the {torch_device} device this process holds")
         else:
             test = " ".join(os.environ.get("PYTEST_CURRENT_TEST").split(" ")[:-1])
             try:
