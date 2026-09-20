@@ -269,7 +269,11 @@ class GPT2ModelTest(CausalLMModelTest, unittest.TestCase):
         with torch.no_grad():
             output_sdpa = model(input_ids, token_type_ids=token_type_ids).logits
 
-        torch.testing.assert_close(output_eager, output_sdpa, atol=1e-4, rtol=1e-4)
+        # Where attention runs in bfloat16 whatever dtype the model is in, the two implementations
+        # agree to bfloat16 rather than float32 precision. A scaling config that went ignored -- what
+        # this test is about -- is orders of magnitude larger than that either way.
+        tolerance = 1e-2 if torch_device == "tpu" else 1e-4
+        torch.testing.assert_close(output_eager, output_sdpa, atol=tolerance, rtol=tolerance)
 
     @require_torch_gpu
     @require_flash_attn
