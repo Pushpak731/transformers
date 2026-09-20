@@ -1541,10 +1541,6 @@ class ModelTesterMixin(ExportTesterMixin):
         (Why "nearly the same" not "exactly the same"? Batching uses different matmul shapes, which often leads to
         different results: https://github.com/huggingface/transformers/issues/25420#issuecomment-1775317535)
         """
-        # Where float32 matmuls execute in bfloat16, the two batchings differ by bfloat16 rounding:
-        # measured at around 2e-5 on these models, an order of magnitude past the float32 tolerance.
-        if torch_device == "tpu":
-            atol = max(atol, 1e-4)
 
         def recursive_check(batched_object, single_row_object, model_name, key):
             if isinstance(batched_object, (list, tuple)):
@@ -1581,8 +1577,15 @@ class ModelTesterMixin(ExportTesterMixin):
                 self.assertFalse(
                     torch.isinf(single_row_object).any(), f"Single row output has `inf` in {model_name} for key={key}"
                 )
+                # Where float32 matmuls execute in bfloat16, the two batchings differ by bfloat16
+                # rounding, which is a fraction of the size of the output rather than a multiple of
+                # float32 epsilon.
+                row_atol = atol
+                if torch_device == "tpu":
+                    magnitude = max(batched_row.abs().max().item(), single_row_object.abs().max().item())
+                    row_atol = max(atol, magnitude * 1e-2)
                 try:
-                    torch.testing.assert_close(batched_row, single_row_object, atol=atol, rtol=rtol)
+                    torch.testing.assert_close(batched_row, single_row_object, atol=row_atol, rtol=rtol)
                 except AssertionError as e:
                     msg = f"Batched and Single row outputs are not equal in {model_name} for key={key}.\n\n"
                     msg += str(e)
