@@ -1062,6 +1062,21 @@ def require_non_hpu(test_case):
     return unittest.skipUnless(torch_device != "hpu", "test requires a non-HPU")(test_case)
 
 
+# Backends `accelerate` can build a device map for. It enumerates the devices with an explicit chain
+# of backend checks and falls back to `torch.cuda.device_count()`, so on any other backend a device
+# map resolves to no device at all and every submodule silently lands on the same one.
+DEVICE_MAP_DEVICES = ("cuda", "xpu", "npu", "mlu", "musa", "sdaa", "hpu")
+
+
+def require_device_map(test_case):
+    """
+    Decorator marking a test that needs `accelerate` to spread a model over the devices of this
+    backend.
+    """
+    supported = torch_device is not None and torch_device.split(":")[0] in DEVICE_MAP_DEVICES
+    return unittest.skipUnless(supported, f"`accelerate` cannot build a device map for {torch_device}")(test_case)
+
+
 def require_torch_xpu(test_case):
     """
     Decorator marking a test that requires XPU (in PyTorch).

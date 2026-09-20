@@ -96,6 +96,7 @@ from transformers.testing_utils import (
     require_accelerate,
     require_bitsandbytes,
     require_deepspeed,
+    require_device_map,
     require_flash_attn,
     require_flash_attn_3,
     require_flash_attn_4,
@@ -3292,6 +3293,7 @@ class ModelTesterMixin(ExportTesterMixin):
 
     @require_non_hpu
     @require_accelerate
+    @require_device_map
     @mark.accelerate_tests
     @require_torch_multi_accelerator
     def test_model_parallelism(self):
