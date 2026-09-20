@@ -379,7 +379,10 @@ class Qwen2VLModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMi
                     attention_mask=inputs_dict["attention_mask"],
                     mm_token_type_ids=inputs_dict["mm_token_type_ids"],
                 )  # [3, bs, padded-seq-len]
-                vision_padfree_positions = vision_position_ids[:, dummy_attention_mask.bool()].view(
+                # `masked_select` rather than `positions[:, mask]`: it keeps the same elements in the
+                # same order, and does not need indexing with a multi-dimensional boolean mask, which
+                # not every backend implements.
+                vision_padfree_positions = vision_position_ids.masked_select(dummy_attention_mask.bool()).view(
                     3, -1
                 )  # [3, bs*padfree-len]
                 text_padfree_positions = torch.cat(
