@@ -484,6 +484,12 @@ def _test_eager_matches_sdpa_inference(
                 # device agnostic with respect to implementation of each aten operator.
                 atol = atols["cuda", False, dtype]
                 rtol = rtols["cuda", False, dtype]
+            elif torch_device == "tpu":
+                # TPU executes float32 and float16 matmuls in bfloat16 by default, and its fused
+                # attention kernel does so whatever `torch.set_float32_matmul_precision` asks for, so
+                # the two implementations differ by bfloat16 error whatever dtype the test names.
+                atol = atols["cuda", enable_kernels, torch.bfloat16]
+                rtol = rtols["cuda", enable_kernels, torch.bfloat16]
             else:
                 atol = 1e-7
                 rtol = 1e-4
