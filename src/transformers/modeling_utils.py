@@ -3022,6 +3022,14 @@ class PreTrainedModel(
         old_centered_embeddings = old_embeddings_weight - mean_embeddings
         covariance = old_centered_embeddings.T @ old_centered_embeddings / old_num_tokens
 
+        # Both the positive-definite check and the distribution below factorise the covariance, and
+        # `torch.linalg.cholesky` is one of the operators accelerator backends commonly leave
+        # unimplemented. The covariance is `hidden x hidden` and the sample `added tokens x hidden`,
+        # neither of which grows with the vocabulary, so fit and sample on CPU and move back only the
+        # rows that are actually written.
+        device, dtype = old_embeddings.weight.device, old_embeddings.weight.dtype
+        mean_embeddings, covariance = mean_embeddings.cpu(), covariance.cpu()
+
         # Check if the covariance is positive definite.
         epsilon = 1e-9
         is_covariance_psd = constraints.positive_definite.check(epsilon * covariance).all()
@@ -3032,11 +3040,11 @@ class PreTrainedModel(
             )
             new_embeddings.weight.data[-1 * added_num_tokens :, :] = distribution.sample(
                 sample_shape=(added_num_tokens,)
-            ).to(old_embeddings.weight.dtype)
+            ).to(device=device, dtype=dtype)
         else:
             # Otherwise, just initialize with the mean. because distribution will not be created.
             new_embeddings.weight.data[-1 * added_num_tokens :, :] = (
-                mean_embeddings[None, :].repeat(added_num_tokens, 1).to(old_embeddings.weight.dtype)
+                mean_embeddings[None, :].repeat(added_num_tokens, 1).to(device=device, dtype=dtype)
             )
 
     def _init_added_lm_head_weights_with_mean(
