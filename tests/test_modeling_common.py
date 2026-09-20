@@ -4363,6 +4363,9 @@ class ModelTesterMixin(ExportTesterMixin):
         for i in range(seq_len):
             start = max(0, i - sliding_window + 1)
             sliding_mask[i, start : i + 1] = True
+        # `masked_select` rather than `attention[:, :, ~sliding_mask]`: it broadcasts the mask over the
+        # leading dimensions in the same way, and does not need indexing with a multi-dimensional
+        # boolean mask, which not every backend implements.
         sliding_mask = sliding_mask.to(torch_device)
 
         config.sliding_window = sliding_window
@@ -4381,9 +4384,9 @@ class ModelTesterMixin(ExportTesterMixin):
             attentions = model(**inputs, output_attentions=True).attentions
             for layer_attention, layer_type in zip(attentions, layer_types):
                 if layer_type == "sliding_attention":
-                    self.assertTrue((layer_attention[:, :, ~sliding_mask] == 0).all().item())
+                    self.assertTrue((layer_attention.masked_select(~sliding_mask) == 0).all().item())
                 else:
-                    self.assertFalse((layer_attention[:, :, ~sliding_mask] == 0).all().item())
+                    self.assertFalse((layer_attention.masked_select(~sliding_mask) == 0).all().item())
 
             # Set sliding window to `False` while keeping `sliding_window=3`
             # Check that all tokens beyond window size are not masked
@@ -4397,7 +4400,7 @@ class ModelTesterMixin(ExportTesterMixin):
             model.eval()
             attentions_not_sliding = model(**inputs, output_attentions=True).attentions
             for layer_attention in attentions_not_sliding:
-                self.assertFalse((layer_attention[:, :, ~sliding_mask] == 0).all().item())
+                self.assertFalse((layer_attention.masked_select(~sliding_mask) == 0).all().item())
 
     @slow
     @require_torch_accelerator
