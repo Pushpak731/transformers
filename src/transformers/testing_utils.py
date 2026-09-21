@@ -3173,6 +3173,18 @@ def require_avg_pool1d_gradient(test_case):
     )
 
 
+# Backends where `torch.multinomial` ignores the seeded generator, so sampling is not reproducible:
+# seeding and running the same generation twice draws different tokens. `torch.rand` and
+# `torch.randn` are seeded correctly there, so it is the draw itself and not the generator.
+NONREPRODUCIBLE_SAMPLING_DEVICES = ("tpu",)
+
+
+def require_reproducible_sampling(test_case):
+    """Decorator marking a test that seeds the RNG and expects two sampled runs to draw alike."""
+    supported = torch_device is None or torch_device.split(":")[0] not in NONREPRODUCIBLE_SAMPLING_DEVICES
+    return unittest.skipUnless(supported, f"`torch.multinomial` ignores the seed on {torch_device}")(test_case)
+
+
 # Backends whose attention refuses an `attn_mask` that requires grad. A model that folds a learned
 # bias into the mask -- T5 and its relatives -- then cannot run a forward pass at all outside
 # `torch.no_grad`, because building the autograd graph is what raises.

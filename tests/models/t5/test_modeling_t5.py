@@ -25,6 +25,7 @@ from transformers.testing_utils import (
     cleanup,
     require_accelerate,
     require_differentiable_attention_mask,
+    require_reproducible_sampling,
     require_sentencepiece,
     require_tokenizers,
     require_torch,
@@ -688,6 +689,9 @@ class T5ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, 
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_decoder_model_past_large_inputs(*config_and_inputs)
 
+    # The two generations are sampled ones compared token for token, so they only match when seeding
+    # pins what the sampler draws.
+    @require_reproducible_sampling
     def test_generate_with_past_key_values(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_generate_with_past_key_values(*config_and_inputs)
