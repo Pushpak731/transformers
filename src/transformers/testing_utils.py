@@ -3160,6 +3160,19 @@ def require_ctc_loss(test_case):
     return unittest.skipUnless(supported, f"`torch.nn.functional.ctc_loss` does not work on {torch_device}")(test_case)
 
 
+# Backends where `torch.nn.functional.avg_pool1d` returns a tensor outside the autograd graph. There
+# is no error and no warning: everything upstream of the pooling simply trains on nothing.
+NO_AVG_POOL1D_GRADIENT_DEVICES = ("tpu",)
+
+
+def require_avg_pool1d_gradient(test_case):
+    """Decorator marking a test that expects gradients to reach through an `avg_pool1d`."""
+    supported = torch_device is None or torch_device.split(":")[0] not in NO_AVG_POOL1D_GRADIENT_DEVICES
+    return unittest.skipUnless(supported, f"`torch.nn.functional.avg_pool1d` has no gradient on {torch_device}")(
+        test_case
+    )
+
+
 # Backends that hand a device to a single process at a time: a child process cannot open the device
 # its parent is holding, and the runtime aborts rather than raising, so the parent only sees the
 # child die. Tests that spawn worker processes -- re-running themselves in a subprocess, or fanning

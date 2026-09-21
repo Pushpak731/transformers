@@ -30,6 +30,7 @@ from transformers import (
 )
 from transformers.testing_utils import (
     cleanup,
+    require_avg_pool1d_gradient,
     require_torch,
     slow,
     torch_device,
@@ -79,6 +80,20 @@ class Qwen2AudioForConditionalGenerationModelTest(ALMModelTest, unittest.TestCas
     @unittest.skip(reason="inputs_embeds is the audio-fused path; can't match raw token-only embeddings.")
     def test_inputs_embeds_matches_input_ids(self):
         pass
+
+    # The audio tower pools with `avg_pool1d`, so on a device whose pooling has no gradient the only
+    # parameters left with one are the layer norm's, which sit after the pooling.
+    @require_avg_pool1d_gradient
+    def test_training_gradient_checkpointing(self):
+        super().test_training_gradient_checkpointing()
+
+    @require_avg_pool1d_gradient
+    def test_training_gradient_checkpointing_use_reentrant_false(self):
+        super().test_training_gradient_checkpointing_use_reentrant_false()
+
+    @require_avg_pool1d_gradient
+    def test_training_gradient_checkpointing_use_reentrant_true(self):
+        super().test_training_gradient_checkpointing_use_reentrant_true()
 
 
 @require_torch
