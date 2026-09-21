@@ -1227,8 +1227,11 @@ class Wav2Vec2UtilsTest(unittest.TestCase):
         for negative in negatives:
             self.assertTrue(((negative - features) == 0).sum() == 0.0)
 
-        # make sure that full vectors are sampled and not values of vectors => this means that `unique()` yields a single value for `hidden_size` dim
-        self.assertEqual(negatives.unique(dim=-1).shape, (num_negatives, batch_size, sequence_length, 1))
+        # make sure that full vectors are sampled and not values of vectors => every value along the
+        # `hidden_size` dim of a sampled vector is the one the feature was built from. Comparing
+        # against the first value rather than counting `unique(dim=-1)`: it is the same statement,
+        # and it does not need `unique` over a dimension, which not every backend implements.
+        self.assertTrue((negatives == negatives[..., :1]).all())
 
     def test_sample_negatives_with_mask(self):
         batch_size = 2
@@ -1265,8 +1268,11 @@ class Wav2Vec2UtilsTest(unittest.TestCase):
         for negative in negatives:
             self.assertTrue(((negative - features) == 0).sum() == 0.0)
 
-        # make sure that full vectors are sampled and not values of vectors => this means that `unique()` yields a single value for `hidden_size` dim
-        self.assertEqual(negatives.unique(dim=-1).shape, (num_negatives, batch_size, sequence_length, 1))
+        # make sure that full vectors are sampled and not values of vectors => every value along the
+        # `hidden_size` dim of a sampled vector is the one the feature was built from. Comparing
+        # against the first value rather than counting `unique(dim=-1)`: it is the same statement,
+        # and it does not need `unique` over a dimension, which not every backend implements.
+        self.assertTrue((negatives == negatives[..., :1]).all())
 
 
 @require_torch
