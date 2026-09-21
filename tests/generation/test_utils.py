@@ -1681,8 +1681,12 @@ class GenerationTesterMixin(ExportGenerateTesterMixin):
             input_2 = {}
             for key, value in inputs_dict.items():
                 if isinstance(value, torch.Tensor):
-                    input_1[key] = value[:half_batch_size, :].to(torch_device)
-                    input_2[key] = value[half_batch_size : half_batch_size * 2, :].to(torch_device)
+                    # `clone()`: the two slices are views into one buffer, so the second one starts
+                    # at a non-zero storage offset. What this test varies is the values, not where
+                    # they sit, and a device whose compiler guards on the storage offset recompiles
+                    # for that difference alone.
+                    input_1[key] = value[:half_batch_size, :].to(torch_device).clone()
+                    input_2[key] = value[half_batch_size : half_batch_size * 2, :].to(torch_device).clone()
                 else:
                     input_1[key] = value
                     input_2[key] = value
