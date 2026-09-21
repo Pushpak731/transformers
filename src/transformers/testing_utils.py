@@ -3173,6 +3173,18 @@ def require_avg_pool1d_gradient(test_case):
     )
 
 
+# Backends whose attention refuses an `attn_mask` that requires grad. A model that folds a learned
+# bias into the mask -- T5 and its relatives -- then cannot run a forward pass at all outside
+# `torch.no_grad`, because building the autograd graph is what raises.
+NO_DIFFERENTIABLE_ATTENTION_MASK_DEVICES = ("tpu",)
+
+
+def require_differentiable_attention_mask(test_case):
+    """Decorator marking a test that runs attention over a mask carrying a learned bias."""
+    supported = torch_device is None or torch_device.split(":")[0] not in NO_DIFFERENTIABLE_ATTENTION_MASK_DEVICES
+    return unittest.skipUnless(supported, f"attention on {torch_device} refuses a mask that requires grad")(test_case)
+
+
 # Backends where a query that attends to nothing -- a row of the attention mask that is False
 # everywhere, which a fully padded sequence in a batch produces -- comes back as a mixture of the
 # values it was told to ignore instead of zeros.

@@ -24,6 +24,7 @@ from transformers.testing_utils import (
     Expectations,
     cleanup,
     require_accelerate,
+    require_differentiable_attention_mask,
     require_sentencepiece,
     require_tokenizers,
     require_torch,
@@ -580,11 +581,13 @@ class T5ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, 
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.check_prepare_lm_labels_via_shift_left(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.assertTrue(config_and_inputs[0].scale_decoder_outputs)
         self.model_tester.create_and_check_model(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_model_v1_1(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         config_v1 = self.model_tester.get_config_v1_1()
@@ -624,28 +627,34 @@ class T5ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, 
             with torch.no_grad():
                 model(**inputs)[0]
 
+    @require_differentiable_attention_mask
     def test_config_and_model_silu_gated(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         config = config_and_inputs[0]
         config.feed_forward_proj = "gated-silu"
         self.model_tester.create_and_check_model(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_with_lm_head(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_with_lm_head(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_with_sequence_classification_head(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_with_sequence_classification_head(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_decoder_model_past(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_decoder_model_past(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_decoder_model_past_with_attn_mask(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_decoder_model_attention_mask_past(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_decoder_model_past_with_3d_attn_mask(self):
         (
             config,
@@ -674,6 +683,7 @@ class T5ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, 
             lm_labels,
         )
 
+    @require_differentiable_attention_mask
     def test_decoder_model_past_with_large_inputs(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_decoder_model_past_large_inputs(*config_and_inputs)
@@ -681,6 +691,53 @@ class T5ModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMixin, 
     def test_generate_with_past_key_values(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_generate_with_past_key_values(*config_and_inputs)
+
+    # Inherited tests that run a forward with autograd enabled, which is all it takes: see
+    # `test_sdpa_can_dispatch_on_flash` above for why the mask is a float one, and it carries the
+    # gradient of the bias that was folded into it.
+    @require_differentiable_attention_mask
+    def test_all_tensors_are_parameter_or_buffer(self):
+        super().test_all_tensors_are_parameter_or_buffer()
+
+    @require_differentiable_attention_mask
+    def test_can_capture_specific_layers_hidden_states(self):
+        super().test_can_capture_specific_layers_hidden_states()
+
+    @require_differentiable_attention_mask
+    def test_cpu_offload(self):
+        super().test_cpu_offload()
+
+    @require_differentiable_attention_mask
+    def test_disk_offload_bin(self):
+        super().test_disk_offload_bin()
+
+    @require_differentiable_attention_mask
+    def test_disk_offload_safetensors(self):
+        super().test_disk_offload_safetensors()
+
+    @require_differentiable_attention_mask
+    def test_encoder_decoder_loss_no_double_shift(self):
+        super().test_encoder_decoder_loss_no_double_shift()
+
+    @require_differentiable_attention_mask
+    def test_feed_forward_chunking(self):
+        super().test_feed_forward_chunking()
+
+    @require_differentiable_attention_mask
+    def test_generate_continue_from_past_key_values(self):
+        super().test_generate_continue_from_past_key_values()
+
+    @require_differentiable_attention_mask
+    def test_load_with_mismatched_shapes(self):
+        super().test_load_with_mismatched_shapes()
+
+    @require_differentiable_attention_mask
+    def test_past_key_values_format(self):
+        super().test_past_key_values_format()
+
+    @require_differentiable_attention_mask
+    def test_resize_embeddings_untied(self):
+        super().test_resize_embeddings_untied()
 
     @unittest.skipIf(torch_device == "cpu", "Can't do half precision")
     def test_model_fp16_forward(self):
@@ -857,15 +914,44 @@ class T5EncoderOnlyModelTest(ModelTesterMixin, PipelineTesterMixin, unittest.Tes
     def test_config(self):
         self.config_tester.run_common_tests()
 
+    @require_differentiable_attention_mask
     def test_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_model(*config_and_inputs)
 
     @unittest.skipIf(torch_device == "cpu", "Can't do half precision")
+    # Inherited tests that run a forward with autograd enabled, which is all it takes: see
+    # `test_sdpa_can_dispatch_on_flash` above for why the mask is a float one, and it carries the
+    # gradient of the bias that was folded into it.
+    @require_differentiable_attention_mask
+    def test_all_tensors_are_parameter_or_buffer(self):
+        super().test_all_tensors_are_parameter_or_buffer()
+
+    @require_differentiable_attention_mask
+    def test_can_capture_specific_layers_hidden_states(self):
+        super().test_can_capture_specific_layers_hidden_states()
+
+    @require_differentiable_attention_mask
+    def test_cpu_offload(self):
+        super().test_cpu_offload()
+
+    @require_differentiable_attention_mask
+    def test_disk_offload_bin(self):
+        super().test_disk_offload_bin()
+
+    @require_differentiable_attention_mask
+    def test_disk_offload_safetensors(self):
+        super().test_disk_offload_safetensors()
+
+    @require_differentiable_attention_mask
+    def test_feed_forward_chunking(self):
+        super().test_feed_forward_chunking()
+
     def test_model_fp16_forward(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_model_fp16_forward(*config_and_inputs)
 
+    @require_differentiable_attention_mask
     def test_with_token_classification_head(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_with_token_classification_head(*config_and_inputs)
@@ -1638,12 +1724,14 @@ class TestAsymmetricT5(unittest.TestCase):
         assert outputs["loss"].size() == ()
         return model
 
+    @require_differentiable_attention_mask
     def test_small_decoder(self):
         # num_hidden_layers is passed to T5Config as num_layers
         model = self.build_model_and_check_forward_pass(decoder_layers=1, num_hidden_layers=2)
         assert len(model.encoder.block) == 2
         assert len(model.decoder.block) == 1
 
+    @require_differentiable_attention_mask
     def test_defaulting_to_symmetry(self):
         # num_hidden_layers is passed to T5Config as num_layers
         model = self.build_model_and_check_forward_pass(num_hidden_layers=2)
