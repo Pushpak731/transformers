@@ -40,6 +40,7 @@ if is_torch_available():
 
 
 GIB = 1024**3
+MIB = 1024**2
 
 
 class Payload:
@@ -424,12 +425,10 @@ class MemoryCleanupUnderPytestTest(MemoryCleanupMixin, unittest.TestCase):
 class MemoryLeakCheckTest(unittest.TestCase):
     """Opt-in leak reporting: unset means never measured, `warn` reports, `error` fails."""
 
-    MIB = 1024**2
-
     def _run_leaking_class(self, leaked_mib):
         # Readings: class baseline, `setUp`, `tearDown`, class check. The last is 0 so only the per-test
         # check fires; the class boundary is `ClassScopeMemoryLeakCheckTest`'s subject.
-        allocations = iter([0, 0, int(leaked_mib * self.MIB), 0])
+        allocations = iter([0, 0, int(leaked_mib * MIB), 0])
 
         class Inner(MemoryCleanupMixin, unittest.TestCase):
             def test_noop(self):
@@ -491,11 +490,9 @@ class MemoryLeakCheckTest(unittest.TestCase):
 class ClassScopeMemoryLeakCheckTest(unittest.TestCase):
     """The per-test check cannot see class-scoped memory, so `tearDownClass` measures it separately."""
 
-    MIB = 1024**2
-
     def _run_class(self, readings):
         """Run a one-test class whose device readings come from `readings`, in order."""
-        allocations = iter([int(mib * self.MIB) for mib in readings])
+        allocations = iter([int(mib * MIB) for mib in readings])
 
         class Inner(MemoryCleanupMixin, unittest.TestCase):
             @classmethod
