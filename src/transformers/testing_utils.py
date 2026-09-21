@@ -3173,6 +3173,20 @@ def require_avg_pool1d_gradient(test_case):
     )
 
 
+# Backends where a query that attends to nothing -- a row of the attention mask that is False
+# everywhere, which a fully padded sequence in a batch produces -- comes back as a mixture of the
+# values it was told to ignore instead of zeros.
+LEAKY_MASKED_ATTENTION_ROW_DEVICES = ("tpu",)
+
+
+def require_masked_attention_rows(test_case):
+    """Decorator marking a test that feeds attention a batch with a fully masked query row."""
+    supported = torch_device is None or torch_device.split(":")[0] not in LEAKY_MASKED_ATTENTION_ROW_DEVICES
+    return unittest.skipUnless(
+        supported, f"a fully masked attention row leaks the values it should ignore on {torch_device}"
+    )(test_case)
+
+
 # Backends that hand a device to a single process at a time: a child process cannot open the device
 # its parent is holding, and the runtime aborts rather than raising, so the parent only sees the
 # child die. Tests that spawn worker processes -- re-running themselves in a subprocess, or fanning

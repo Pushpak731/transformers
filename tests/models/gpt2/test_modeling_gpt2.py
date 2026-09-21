@@ -21,6 +21,7 @@ from transformers.testing_utils import (
     Expectations,
     cleanup,
     require_flash_attn,
+    require_masked_attention_rows,
     require_torch,
     require_torch_accelerator,
     require_torch_gpu,
@@ -319,6 +320,9 @@ class GPT2ModelTest(CausalLMModelTest, unittest.TestCase):
         )
         result.loss.backward()
 
+    # The tester hands out a random encoder mask, so zeroing its second half leaves some sequences
+    # masked everywhere: the whole point of the test, and the case a leaky mask gets wrong.
+    @require_masked_attention_rows
     def test_cross_attention_respects_encoder_padding_mask(self):
         torch.manual_seed(0)
         config, input_ids, _, _, _, _, _, encoder_hidden_states, encoder_attention_mask = (
