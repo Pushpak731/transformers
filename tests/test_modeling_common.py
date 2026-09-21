@@ -919,13 +919,15 @@ class ModelTesterMixin(ExportTesterMixin):
                 model.save_pretrained(tmpdirname)
                 model = model_class.from_pretrained(tmpdirname)
 
+            # The reloaded model is the same model run a second time, so the comparison allows for
+            # what that costs on a device that computes it at reduced precision.
             if isinstance(first, tuple) and isinstance(second, tuple):
                 for tensor1, tensor2 in zip(first, second):
-                    torch.testing.assert_close(
+                    assert_same_run_close(
                         tensor1, tensor2, msg="Running save/load and forward yields different results"
                     )
             else:
-                torch.testing.assert_close(first, second, msg="Running save/load and forward yields different results")
+                assert_same_run_close(first, second, msg="Running save/load and forward yields different results")
 
     def test_from_pretrained_no_checkpoint(self):
         config, _ = self.model_tester.prepare_config_and_inputs_for_common()

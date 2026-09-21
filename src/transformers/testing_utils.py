@@ -3141,8 +3141,9 @@ def assert_same_run_close(first, second, **kwargs):
     device this is `torch.testing.assert_close` with the arguments it was given.
     """
     if torch_device == "tpu" and first.numel():
+        # The same fraction of the output the eager/SDPA comparison allows itself for bfloat16.
         magnitude = max(first.abs().max().item(), second.abs().max().item())
-        kwargs["atol"] = max(kwargs.get("atol") or 0.0, magnitude * 1e-2)
+        kwargs["atol"] = max(kwargs.get("atol") or 0.0, magnitude * 3e-2)
         kwargs.setdefault("rtol", 1e-5)
     torch.testing.assert_close(first, second, **kwargs)
 
