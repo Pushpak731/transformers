@@ -41,6 +41,7 @@ if is_torch_available():
 
 GIB = 1024**3
 MIB = 1024**2
+FOUR_GIB = FOUR_GIB
 
 
 class Payload:
@@ -558,7 +559,7 @@ class ClassScopeMemoryLeakCheckTest(unittest.TestCase):
 
     def test_a_subclass_that_calls_super_records_one_baseline(self):
         """Both wrappers fire; the outer one owns the baseline, so the inner must not overwrite it."""
-        allocations = iter([0, 4096 * self.MIB, 4096 * self.MIB, 4096 * self.MIB])
+        allocations = iter([0, FOUR_GIB, FOUR_GIB, FOUR_GIB])
 
         class Base(MemoryCleanupMixin, unittest.TestCase):
             @classmethod
@@ -590,7 +591,7 @@ class ClassScopeMemoryLeakCheckTest(unittest.TestCase):
 
     def test_a_class_with_no_setupclass_override_still_gets_a_baseline(self):
         """Most in-tree users never override `setUpClass`; the hook has to wrap the inherited one."""
-        allocations = iter([0, 0, 0, 4096 * self.MIB])
+        allocations = iter([0, 0, 0, FOUR_GIB])
 
         class Inner(MemoryCleanupMixin, unittest.TestCase):
             def test_noop(self):
@@ -629,7 +630,7 @@ class ClassScopeMemoryLeakCheckTest(unittest.TestCase):
         self.assertTrue(result.wasSuccessful(), result.errors + result.failures)
 
     def test_a_failing_class_teardown_is_not_replaced_by_the_leak(self):
-        allocations = iter([0, 4096 * self.MIB, 4096 * self.MIB, 4096 * self.MIB])
+        allocations = iter([0, FOUR_GIB, FOUR_GIB, FOUR_GIB])
 
         class Base(unittest.TestCase):
             @classmethod
